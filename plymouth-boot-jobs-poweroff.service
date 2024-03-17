@@ -1,0 +1,18 @@
+# /etc/systemd/system/plymouth-boot-messages.service
+# Run "systemctl enable plymouth-boot-messages.service" after creating the file
+
+[Unit]
+Description=Test systemd Jobs
+DefaultDependencies=no
+#DefaultDependencies=no
+
+# You may want these if your plymouth is not started by initramfs, but I want the script to take effect as soon as possible...
+Before=shutdown.target reboot.target halt.target
+After=plymouth-poweroff.service plymouth-reboot.service plymouth-halt.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/plymouth_systemd_jobs
+RemainAfterExit=no
+TimeoutStartSec=10000
+
