@@ -1,0 +1,6 @@
+[messages]
+"akmods.service" = "Compiling and installing Kernel modules, Please wait..."
+"akmods-shutdown.service" = "Compiling and installing Kernel modules, Please wait..."
+
+[condition]
+min_secs = 1

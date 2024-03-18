@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -44,6 +45,7 @@ type DBUS_SYSTEMD_JOB struct {
 }
 
 func initSystemdJobStuff(conn *dbus.Conn) error {
+	job_map[0] = Job{}
 	fmt.Println("initSystemdJobStuff()")
 	fmt.Println(job_map)
 
@@ -149,20 +151,30 @@ func processDbusSignals(conn *dbus.Conn) {
 
 func getJobs(conn *dbus.Conn) map[uint32]Job {
 	fmt.Println("getJobs()")
+	job_map_mutex.Lock()
+	defer job_map_mutex.Unlock()
+
+	job_map = make(map[uint32]Job)
+	getAllJobs(conn)
+
 	return job_map
 }
 
-func getOldestJob(conn *dbus.Conn) Job {
+func getOldestJob() (Job, error) {
 	var longest_id uint32 = 0
 	var longest_elapsed time.Duration = 0
 
 	job_map_mutex.Lock()
 	defer job_map_mutex.Unlock()
 
+	if len(job_map) < 1 {
+		return Job{}, errors.New("currently no jobs running")
+	}
+
 	for job_id, job := range job_map {
-		if job.watch.Elapsed() > longest_elapsed {
+		if job_id > 0 && job.watch.Elapsed() > longest_elapsed {
 			longest_id = job_id
 		}
 	}
-	return job_map[longest_id]
+	return job_map[longest_id], nil
 }

@@ -13,6 +13,23 @@ import (
 	"github.com/hairyhenderson/go-which"
 )
 
+func checkCmdArgs(settings *SettingsStruct) bool {
+	cmdArgs := os.Args[1:]
+	if len(cmdArgs) > 0 {
+		if cmdArgs[0] == "show_overrides" {
+			loadSettings(true)
+			fmt.Printf("All override:\n %+v \n", settings.messages)
+			return true
+		} else if cmdArgs[0] == "help" {
+			fmt.Println("==== HELP ====")
+			fmt.Println("help: Shows this Text")
+			fmt.Println("show_overrides: Shows all defined custom service Texts")
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	fmt.Println("Starting...")
 
@@ -34,7 +51,16 @@ func main() {
 		panic(err)
 	}
 
-	go processJobs(conn)
+	settings, err := loadSettings(false)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if checkCmdArgs(settings) {
+		os.Exit(0)
+	}
+
+	go processJobs(settings)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1)
@@ -48,9 +74,10 @@ func main() {
 	fmt.Println("awaiting signal")
 	<-done
 	fmt.Println("exiting")
+	settings = nil
 }
 
-func processJobs(conn *dbus.Conn) {
+func processJobs(settings *SettingsStruct) {
 	fmt.Println("Start timeloop...")
 
 	wasDisplaying := false
@@ -62,10 +89,11 @@ func processJobs(conn *dbus.Conn) {
 			fmt.Printf("ExecPath=%s\n", exePath)
 			continue
 		}
-		current_jobs := getOldestJob(conn)
-		if current_jobs.jID > 0 && current_jobs.watch.ElapsedSeconds() > 1.0 {
+		current_jobs, err := getOldestJob()
+		if err != nil && current_jobs.watch.ElapsedSeconds() > float64(settings.condis.min_time_secs) {
 			fmt.Println(current_jobs)
-			txtArg := fmt.Sprintf("--text=\"Job: Unit: %s\" Time:%f ", current_jobs.sUnit, current_jobs.watch.ElapsedSeconds())
+			txtCustom := settings.getCustomMessage(&current_jobs)
+			txtArg := fmt.Sprintf("--text=\"[Time:%.f] Job: Unit: %s %s\"", current_jobs.watch.ElapsedSeconds(), current_jobs.sUnit, txtCustom)
 			exe := exec.Command(exePath, "display-message", txtArg)
 			_, err := exe.Output()
 			if err != nil {
