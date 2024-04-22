@@ -69,5 +69,9 @@ func loadSettings(debug bool) (*SettingsStruct, error) {
 }
 
 func (s *SettingsStruct) getCustomMessage(job *Job) string {
-	return s.messages[job.sUnit]
+	txt, ok := s.messages[job.sUnit]
+	if ok {
+		return txt
+	}
+	return job.sUnit
 }
